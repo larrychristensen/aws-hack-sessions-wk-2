@@ -5,14 +5,8 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -28,11 +22,12 @@ public class App
     private static AmazonS3 s3;
 
     // TODO: REPLACE my-name WITH YOUR NAME IN BUCKET_PREFIX, e.g. ostk-hack-sessions-larry-christensen-week-1
-    private static final String BUCKET_PREFIX = "ostk-hack-sessions-larry-christensen-week-1-";
+    private static final String BUCKET_PREFIX = "ostk-hack-sessions-my-name-week-1-";
 
     public static void main( String[] args )
     {
-        AWSCredentials credentials = new ProfileCredentialsProvider("hack-sessions-larry").getCredentials();
+        // TODO: REPLACE hack-sessions-my-name WITH THE ACTUAL AWS PROFILE YOU ARE USING (PROBABLY default)
+        AWSCredentials credentials = new ProfileCredentialsProvider("hack-sessions-my-name").getCredentials();
 
         s3 = AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
@@ -77,23 +72,15 @@ public class App
     }
 
     private static void listLoginGroups() {
-        println("LISTING S3 BUCKETS WITH BUCKET_PREFIX");
-        s3.listBuckets()
-                .stream()
-                .map(Bucket::getName)
-                .filter(name -> name.startsWith(BUCKET_PREFIX))
-                .map(name -> name.replace(BUCKET_PREFIX, ""))
-                .forEach(App::println);
+        println("LISTING LOGIN GROUPS BY LISTING BUCKETS WITH BUCKET_PREFIX, REMOVING THE PREFIX FROM EACH, AND " +
+                "PRINTING THE RESULTING VALUES");
+        // TODO: Implement Me!
     }
 
     private static void listLogins() {
         getBucketName(bucketName -> {
             println("LISTING OBJECTS WITHIN THE BUCKET " + bucketName);
-            s3.listObjects(bucketName)
-                    .getObjectSummaries()
-                    .stream()
-                    .map(S3ObjectSummary::getKey)
-                    .forEach(App::println);
+            // TODO: Implement Me!
         });
     }
 
@@ -113,7 +100,7 @@ public class App
                     bucketName,
                     loginText));
 
-            s3.putObject(bucketName, objectKey, loginText);
+            // TODO: Implement Me!
         });
     }
 
@@ -124,10 +111,7 @@ public class App
                     bucketName,
                     objectKey));
 
-            S3Object s3Object = s3.getObject(bucketName, objectKey);
-            InputStream contentStream = s3Object.getObjectContent();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(contentStream));
-            reader.lines().forEach(line -> println(line));
+            // TODO: Implement Me!
         });
     }
 
@@ -141,7 +125,7 @@ public class App
             // TODO: (extra credit) If you enabled versioning, delete all versions
             // TODO: (extra credit) If you enabled cross-region replication, delete the bucket it is replicating to
 
-            s3.deleteObject(bucketName, objectKey);
+            // TODO: Implement Me!
         });
     }
 
@@ -158,7 +142,7 @@ public class App
             println(String.format(
                     "DELETING BUCKET %s",
                     bucketName));
-            s3.deleteBucket(bucketName);
+            // TODO: Implement Me!
         });
     }
 
@@ -168,13 +152,14 @@ public class App
         // TODO: (EXTRA CREDIT) enable cross-region replication on the bucket
         if (!doesBucketExist(bucketName)) {
             println(String.format("BUCKET %s DID NOT EXIST, CREATING IT", bucketName));
-            s3.createBucket(bucketName);
+            // TODO: Implement Me!
         }
     }
 
     private static boolean doesBucketExist(String bucketName) {
         println(String.format("CHECKING IF BUCKET %s EXISTS", bucketName));
-        return s3.doesBucketExistV2(bucketName);
+        // TODO: Implement Me!
+        return false;
     }
 
     private static void getBucketNameAndObjectKey(BiConsumer<String, String> bucketAndKeyFn) {
