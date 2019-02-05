@@ -135,9 +135,7 @@ public class App
                     "GETTING THE LIST OF ALL OBJECTS FROM BUCKET %s TO DELETE THEM",
                     bucketName));
 
-            ObjectListing objectListing = s3.listObjects(bucketName);
-            objectListing.getObjectSummaries().stream().forEach(
-                    objectSummary -> s3.deleteObject(bucketName, objectSummary.getKey()));
+            // TODO: Implement Me!
 
             println(String.format(
                     "DELETING BUCKET %s",
