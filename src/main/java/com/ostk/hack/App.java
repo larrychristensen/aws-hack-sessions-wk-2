@@ -1,7 +1,21 @@
 package com.ostk.hack;
 
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Hello world!
@@ -9,101 +23,190 @@ import java.util.function.BiConsumer;
  */
 public class App 
 {
-    // TODO: You'll need to instantiate an AmazonS3 instance using AmazonS3ClientBuilder and probably with region
-    // us-east-1. You could add it as a static field here.
+    private static Scanner scanner = new Scanner(System.in);
+
+    private static AmazonS3 s3;
+
+    // TODO: REPLACE my-name WITH YOUR NAME IN BUCKET_PREFIX, e.g. ostk-hack-sessions-larry-christensen-week-1
+    private static final String BUCKET_PREFIX = "ostk-hack-sessions-larry-christensen-week-1-";
 
     public static void main( String[] args )
     {
-        println("Enter 1 if you want to save a login, 2 if you want to look up a login, 3 if you want to delete a " +
-                "login, or 4 if you want to delete a whole login group");
+        AWSCredentials credentials = new ProfileCredentialsProvider("hack-sessions-larry").getCredentials();
 
-        Scanner in = new Scanner(System.in);
+        s3 = AmazonS3ClientBuilder.standard()
+                .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                .withRegion("us-east-1")
+                .build();
 
-        int selection = in.nextInt();
+        while (true) {
+            println("What do you want to do? Enter a number for one of the options below:\n" +
+                    "1. Save a login.\n" +
+                    "2. List login groups.\n" +
+                    "3. List logins in a group.\n" +
+                    "4. Lookup login.\n" +
+                    "5. Delete a login from a group.\n" +
+                    "6. Delete a login group.\n");
 
-        switch (selection) {
-            case 1:
-                saveLogin(in);
-                break;
-            case 2:
-                lookupLogin(in);
-                break;
-            case 3:
-                deleteLogin(in);
-                break;
-            case 4:
-                deleteGroup(in);
-            default:
-                println("SOPHISTICATED HACK ATTEMPT DETECTED AND BLOCKED, GOODBYE.");
-                break;
+            String selection = readLine();
+
+            switch (selection) {
+                case "1":
+                    saveLogin();
+                    break;
+                case "2":
+                    listLoginGroups();
+                    break;
+                case "3":
+                    listLogins();
+                    break;
+                case "4":
+                    lookupLogin();
+                    break;
+                case "5":
+                    deleteLogin();
+                    break;
+                case "6":
+                    deleteGroup();
+                    break;
+                default:
+                    println("SOPHISTICATED HACK ATTEMPT DETECTED AND BLOCKED, GOODBYE.");
+                    break;
+            }
         }
     }
 
-    private static void saveLogin(Scanner in) {
-        getBucketNameAndObjectKey(in, (bucketName, objectKey) -> {
-            String username = promptForStringInput(in, "Enter the username or email:");
+    private static void listLoginGroups() {
+        println("LISTING S3 BUCKETS WITH BUCKET_PREFIX");
+        s3.listBuckets()
+                .stream()
+                .map(Bucket::getName)
+                .filter(name -> name.startsWith(BUCKET_PREFIX))
+                .map(name -> name.replace(BUCKET_PREFIX, ""))
+                .forEach(App::println);
+    }
 
-            String password = promptForStringInput(in, "Enter the password:");
+    private static void listLogins() {
+        getBucketName(bucketName -> {
+            println("LISTING OBJECTS WITHIN THE BUCKET " + bucketName);
+            s3.listObjects(bucketName)
+                    .getObjectSummaries()
+                    .stream()
+                    .map(S3ObjectSummary::getKey)
+                    .forEach(App::println);
+        });
+    }
+
+    private static void saveLogin() {
+        getBucketNameAndObjectKey((bucketName, objectKey) -> {
+            String username = promptForStringInput("Enter the username or email:");
+
+            String password = promptForStringInput("Enter the password:");
 
             String loginText = createLoginText(username, password);
 
             createS3BucketIfItDoesNotExist(bucketName);
 
-            // TODO: Create the object in the bucket with the 'loginText' as its content
+            println(String.format(
+                    "PUTTING OBJECT WITH KEY %s TO BUCKET %s WITH CONTENT: \n%s",
+                    objectKey,
+                    bucketName,
+                    loginText));
+
+            s3.putObject(bucketName, objectKey, loginText);
         });
     }
 
-    private static void lookupLogin(Scanner in) {
-        getBucketNameAndObjectKey(in, (bucketName, objectKey) -> {
-            // TODO: get the object from the bucket and print it at the console
+    private static void lookupLogin() {
+        getBucketNameAndObjectKey((bucketName, objectKey) -> {
+            println(String.format(
+                    "GETTING OBJECT CONTENTS FOR OBJECT WITH KEY %s FROM BUCKET %s",
+                    bucketName,
+                    objectKey));
+
+            S3Object s3Object = s3.getObject(bucketName, objectKey);
+            InputStream contentStream = s3Object.getObjectContent();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(contentStream));
+            reader.lines().forEach(line -> println(line));
         });
     }
 
-    private static void deleteLogin(Scanner in) {
-        getBucketNameAndObjectKey(in, (bucketName, objectKey) -> {
-            // TODO: delete the object from the bucket
+    private static void deleteLogin() {
+        getBucketNameAndObjectKey((bucketName, objectKey) -> {
+            println(String.format(
+                    "DELETING OBJECT WITH KEY %s FROM BUCKET %s",
+                    bucketName,
+                    objectKey));
+
             // TODO: (extra credit) If you enabled versioning, delete all versions
             // TODO: (extra credit) If you enabled cross-region replication, delete the bucket it is replicating to
+
+            s3.deleteObject(bucketName, objectKey);
         });
     }
 
-    private static void deleteGroup(Scanner in) {
-        getBucketNameAndObjectKey(in, (bucketName, objectKey) -> {
-            // TODO: delete the bucket
+    private static void deleteGroup() {
+        getBucketName(bucketName -> {
+            println(String.format(
+                    "GETTING THE LIST OF ALL OBJECTS FROM BUCKET %s TO DELETE THEM",
+                    bucketName));
+
+            ObjectListing objectListing = s3.listObjects(bucketName);
+            objectListing.getObjectSummaries().stream().forEach(
+                    objectSummary -> s3.deleteObject(bucketName, objectSummary.getKey()));
+
+            println(String.format(
+                    "DELETING BUCKET %s",
+                    bucketName));
+            s3.deleteBucket(bucketName);
         });
     }
 
     private static void createS3BucketIfItDoesNotExist(String bucketName) {
-        // TODO: check if the bucket exists and create it if it does not
         // TODO: (EXTRA CREDIT) enable versioning on the bucket
         // TODO: (EXTRA CREDIT) tag the bucket with 'Creator'=<your name>, Project='Hack Sessions Week 2'
         // TODO: (EXTRA CREDIT) enable cross-region replication on the bucket
-        throw new UnsupportedOperationException();
+        if (!doesBucketExist(bucketName)) {
+            println(String.format("BUCKET %s DID NOT EXIST, CREATING IT", bucketName));
+            s3.createBucket(bucketName);
+        }
     }
 
-    private static void getBucketNameAndObjectKey(Scanner in, BiConsumer<String, String> bucketAndKeyFn) {
-        String groupName = promptForGroupName(in);
+    private static boolean doesBucketExist(String bucketName) {
+        println(String.format("CHECKING IF BUCKET %s EXISTS", bucketName));
+        return s3.doesBucketExistV2(bucketName);
+    }
 
-        String loginName = promptForLoginName(in);
+    private static void getBucketNameAndObjectKey(BiConsumer<String, String> bucketAndKeyFn) {
+        getBucketName(bucketName -> {
+            String loginName = promptForLoginName();
+
+            String objectKey = objectKeyForLogin(loginName);
+
+            bucketAndKeyFn.accept(bucketName, objectKey);
+        });
+    }
+
+    private static void getBucketName(Consumer<String> bucketFn) {
+        String groupName = promptForGroupName();
 
         String bucketName = bucketNameForGroup(groupName);
+        println(String.format("CONVERTING INPUT GROUP NAME %s TO VALID BUCKET NAME %s", groupName, bucketName));
 
-        String objectKey = objectKeyForLogin(loginName);
-
-        bucketAndKeyFn.accept(bucketName, objectKey);
+        bucketFn.accept(bucketName);
     }
 
-    private static String promptForLoginName(Scanner in) {
-        return promptForStringInput(in,"Enter the login name:");
+    private static String promptForLoginName() {
+        return promptForStringInput("Enter the login name:");
     }
 
-    private static String promptForGroupName(Scanner in) {
-        return promptForStringInput(in,"Enter the name of the password group:");
+    private static String promptForGroupName() {
+        return promptForStringInput("Enter the name of the password group:");
     }
 
-    private static String promptForStringInput(Scanner in, String s) {
+    private static String promptForStringInput(String s) {
         println(s);
-        return in.nextLine();
+        return readLine();
     }
 
     private static String bucketNameForGroup(String groupName) {
@@ -112,11 +215,12 @@ public class App
         // * Each label in the bucket name must start with a lowercase letter or number.
         // * The bucket name cannot contain underscores, end with a dash, have consecutive periods, or use dashes adjacent to periods.
         // * The bucket name cannot be formatted as an IP address (198.51.100.24).
-        // TODO: (EXTRA CREDIT) many groupNames will map to the same bucket name, which could cause some unexpected
-        // behavior. Implement a more sophisticated mapping here.
-        return groupName
+        // TODO: (EXTRA CREDIT) perform a more sophisticated conversion
+        String validGroupName = groupName
                 .toLowerCase()
                 .replaceAll("[^a-z0-9\\-]", "-");
+        println(String.format("CONVERTING INPUT GROUP NAME %s TO VALID GROUP NAME %s", groupName, validGroupName));
+        return BUCKET_PREFIX + validGroupName;
     }
 
     private static String createLoginText(String username, String password) {
@@ -131,6 +235,11 @@ public class App
     }
 
     private static void println(Object arg) {
-	System.out.println(arg);
+        System.out.println(arg);
+        System.out.println();
+    }
+
+    private static String readLine() {
+        return scanner.nextLine();
     }
 }
