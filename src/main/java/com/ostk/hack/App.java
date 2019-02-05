@@ -107,8 +107,8 @@ public class App
         getBucketNameAndObjectKey((bucketName, objectKey) -> {
             println(String.format(
                     "GETTING OBJECT CONTENTS FOR OBJECT WITH KEY %s FROM BUCKET %s",
-                    bucketName,
-                    objectKey));
+                    objectKey,
+                    bucketName));
 
             // TODO: Implement Me!
         });
@@ -118,8 +118,8 @@ public class App
         getBucketNameAndObjectKey((bucketName, objectKey) -> {
             println(String.format(
                     "DELETING OBJECT WITH KEY %s FROM BUCKET %s",
-                    bucketName,
-                    objectKey));
+                    objectKey,
+                    bucketName));
 
             // TODO: (extra credit) If you enabled versioning, delete all versions
             // TODO: (extra credit) If you enabled cross-region replication, delete the bucket it is replicating to
